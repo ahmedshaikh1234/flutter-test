@@ -1,9 +1,9 @@
-name: Build APK
+name: Build and Release APK
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'  # Trigger the workflow on tags starting with 'v'
   pull_request:
     branches:
       - main
@@ -28,19 +28,47 @@ jobs:
         flutter-version: '3.22.1'  # Specify the exact version of Flutter
         channel: 'stable'
         cache: true
-  # Replace with your desired Flutter version
 
     - name: Install dependencies
       run: flutter pub get
 
+    # Uncomment the following step if you want to run tests
     # - name: Run tests
     #   run: flutter test
 
     - name: Build APK
       run: flutter build apk --release
 
-    - name: Upload APK
+    - name: Upload APK as artifact (for debugging)
       uses: actions/upload-artifact@v3
       with:
         name: app-release.apk
         path: build/app/outputs/flutter-apk/app-release.apk
+
+  release:
+    name: Create Release and Upload APK
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}  # The tag that triggered the workflow
+        release_name: Release ${{ github.ref }}
+        body: "Automated release for APK"
+        draft: false
+        prerelease: false
+
+    - name: Upload APK to Release
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: build/app/outputs/flutter-apk/app-release.apk
+        asset_name: app-release.apk
+        asset_content_type: application/vnd.android.package-archive
