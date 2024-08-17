@@ -1,12 +1,9 @@
-name: Build APK
+name: Build APK and Create Release
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    tags:
+      - 'v*'  # Trigger this workflow only on version tags
 
 jobs:
   build:
@@ -25,10 +22,7 @@ jobs:
     - name: Install Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.22.1'  # Specify the exact version of Flutter
-        channel: 'stable'
-        cache: true
-  # Replace with your desired Flutter version
+        flutter-version: '3.22.1'  # Ensure correct Flutter version
 
     - name: Install dependencies
       run: flutter pub get
@@ -39,8 +33,19 @@ jobs:
     - name: Build APK
       run: flutter build apk --release
 
-    - name: Upload APK
+    - name: Upload APK as an artifact
       uses: actions/upload-artifact@v3
       with:
         name: app-release.apk
         path: build/app/outputs/flutter-apk/app-release.apk
+
+    - name: Create GitHub Release
+      uses: ncipollo/release-action@v1
+      with:
+        tag: ${{ github.ref }}  # Use the tag that triggered the workflow
+        name: Release ${{ github.ref }}
+        body: |
+          Automated release of version ${{ github.ref }}.
+        draft: false
+        prerelease: false
+        files: build/app/outputs/flutter-apk/app-release.apk
